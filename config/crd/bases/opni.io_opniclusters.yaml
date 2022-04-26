@@ -4054,6 +4054,9 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
+                      replicas:
+                        format: int32
+                        type: integer
                       tolerations:
                         items:
                           properties:
@@ -4288,6 +4291,9 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
+                      replicas:
+                        format: int32
+                        type: integer
                       tolerations:
                         items:
                           properties:
