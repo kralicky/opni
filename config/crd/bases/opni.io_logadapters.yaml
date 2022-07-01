@@ -3490,6 +3490,9 @@ spec:
                             maxSkew:
                               format: int32
                               type: integer
+                            minDomains:
+                              format: int32
+                              type: integer
                             topologyKey:
                               type: string
                             whenUnsatisfiable:
@@ -7016,6 +7019,9 @@ spec:
                             maxSkew:
                               format: int32
                               type: integer
+                            minDomains:
+                              format: int32
+                              type: integer
                             topologyKey:
                               type: string
                             whenUnsatisfiable:
@@ -7085,6 +7091,8 @@ spec:
               aks:
                 type: object
               containerLogDir:
+                type: string
+              controlNamespace:
                 type: string
               eks:
                 type: object
@@ -10545,6 +10553,9 @@ spec:
                             maxSkew:
                               format: int32
                               type: integer
+                            minDomains:
+                              format: int32
+                              type: integer
                             topologyKey:
                               type: string
                             whenUnsatisfiable:
@@ -14069,6 +14080,9 @@ spec:
                                   type: object
                               type: object
                             maxSkew:
+                              format: int32
+                              type: integer
+                            minDomains:
                               format: int32
                               type: integer
                             topologyKey:
