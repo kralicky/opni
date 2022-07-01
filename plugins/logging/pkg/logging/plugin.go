@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hashicorp/go-hclog"
 	opniv1beta2 "github.com/rancher/opni/apis/v1beta2"
 	managementv1 "github.com/rancher/opni/pkg/apis/management/v1"
 	"github.com/rancher/opni/pkg/capabilities/wellknown"
@@ -19,6 +18,7 @@ import (
 	"github.com/rancher/opni/pkg/util/future"
 	opnimeta "github.com/rancher/opni/pkg/util/meta"
 	"github.com/rancher/opni/plugins/logging/pkg/apis/opensearch"
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -37,7 +37,7 @@ type Plugin struct {
 	opensearch.UnsafeOpensearchServer
 	ctx            context.Context
 	k8sClient      client.Client
-	logger         hclog.Logger
+	logger         *zap.SugaredLogger
 	storageBackend future.Future[storage.Backend]
 	mgmtApi        future.Future[managementv1.ManagementClient]
 }
@@ -71,7 +71,7 @@ func NewPlugin(ctx context.Context, opts ...PluginOption) *Plugin {
 	options := PluginOptions{}
 	options.apply(opts...)
 
-	lg := logger.NewForPlugin()
+	lg := logger.NewPluginLogger().Named("logging")
 
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -99,14 +99,16 @@ func NewPlugin(ctx context.Context, opts ...PluginOption) *Plugin {
 func Scheme(ctx context.Context) meta.Scheme {
 	scheme := meta.NewScheme()
 
+	ns := os.Getenv("OPNI_SYSTEM_NAMESPACE")
+
 	opniCluster := &opnimeta.OpensearchClusterRef{
 		Name:      "opni",
-		Namespace: "opni-cluster-system",
+		Namespace: ns,
 	}
 
 	p := NewPlugin(
 		ctx,
-		WithNamespace("opni-cluster-system"),
+		WithNamespace(ns),
 		WithOpensearchCluster(opniCluster),
 	)
 
