@@ -31,6 +31,8 @@ dagger.#Plan & {
 			PLUGIN_PUBLISH:      string | *"0.5.4-rc3"
 			DOCKER_USERNAME?:    string
 			DOCKER_PASSWORD?:    dagger.#Secret
+			TWINE_USERNAME:      string | *"__token__"
+			TWINE_PASSWORD?:     dagger.#Secret
 		}
 		filesystem: {
 			".": read: {
@@ -44,11 +46,10 @@ dagger.#Plan & {
 					"internal/cmd/testenv",
 				]
 			}
-			"bin": write: contents:             actions.build.bin
-			"web/dist": write: contents:        actions.web.dist
-			"dist/charts": write: contents:     actions.charts.output
-			"cover.out": write: contents:       actions.test.export.files["/src/cover.out"]
-			"aiops/apis/dist": write: contents: actions.aiops.packages.output
+			"bin": write: contents:         actions.build.bin
+			"web/dist": write: contents:    actions.web.dist
+			"dist/charts": write: contents: actions.charts.output
+			"cover.out": write: contents:   actions.test.export.files["/src/cover.out"]
 		}
 		network: "unix:///var/run/docker.sock": connect: dagger.#Socket
 	}
@@ -364,20 +365,13 @@ dagger.#Plan & {
 			}
 		}
 		aiops: {
-			packages: {
-				sdist: python.#Run & {
-					script: {
-						directory: actions.build.output.rootfs
-						filename:  "src/aiops/apis/setup.py"
-					}
-					workdir: "/run/python/src/aiops/apis"
-					args: ["sdist", "-d", "/dist"]
+			sdist: python.#Run & {
+				script: {
+					directory: actions.build.output.rootfs
+					filename:  "src/aiops/apis/setup.py"
 				}
-				_subdir: core.#Subdir & {
-					input: sdist.output.rootfs
-					path:  "/dist"
-				}
-				output: _subdir.output
+				workdir: "/run/python/src/aiops/apis"
+				args: ["sdist", "-d", "/dist"]
 			}
 			build: docker.#Build & {
 				steps: [
@@ -395,6 +389,35 @@ dagger.#Plan & {
 						}
 					},
 				]
+			}
+		}
+		pypi: {
+			_distImage: docker.#Build & {
+				steps: [
+					docker.#Run & {
+						input: aiops.sdist.output
+						command: {
+							name: "pip"
+							args: [ "install", "twine"]
+						}
+					},
+				]
+			}
+			upload: docker.#Run & {
+				input: _distImage.output
+				command: {
+					name: "twine"
+					args: [
+						"upload",
+						"--repository",
+						"pypi",
+						"/dist/*",
+					]
+				}
+				env: {
+					TWINE_USERNAME: client.env.TWINE_USERNAME
+					TWINE_PASSWORD: client.env.TWINE_PASSWORD
+				}
 			}
 		}
 	}
