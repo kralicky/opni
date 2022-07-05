@@ -23,9 +23,6 @@ script_for_anomaly = (
     "ctx._source.anomaly_predicted_count += 1; ctx._source.opnilog_anomaly = true;"
 )
 
-#protobuf_conversion_dict = {"Id": "_id" ,"clusterId" : "cluster_id", "maskedLog": "masked_log", "anomalyLevel": "anomaly_level", "logType": "log_type","templateMatched": "template_matched","templateClusterId": "template_cluster_id","inferenceModel": "inference_model","opnilogConfidence": "opnilog_confidence"}
-
-
 async def doc_generator(df):
     main_doc_keywords = {"_op_type", "_index", "_id", "doc"}
     df["_op_type"] = "update"
