@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	oslov1 "github.com/alexandreLamarre/oslo/pkg/manifest/v1"
-	"github.com/alexandreLamarre/sloth/core/app/generate"
+	"github.com/alexandreLamarre/sloth/core/alert"
 	"github.com/alexandreLamarre/sloth/core/prometheus"
 	"github.com/hashicorp/go-hclog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher/opni/pkg/slo/shared"
 	"github.com/rancher/opni/pkg/test"
 	apis "github.com/rancher/opni/plugins/slo/pkg/apis/slo"
 	"github.com/rancher/opni/plugins/slo/pkg/slo"
@@ -27,7 +29,7 @@ var _ = Describe("Converting ServiceLevelObjective Messages to Prometheus Rules"
 		Datasource:  "monitoring",
 		Description: "Some SLO",
 		Services: []*apis.Service{
-			{JobId: "foo-service", ClusterId: "foo-cluster", MetricName: "uptime", MetricId: "up"},
+			{JobId: "foo-service", ClusterId: "foo-cluster", MetricName: "uptime", MetricIdGood: "up", MetricIdTotal: "up"},
 		},
 		MonitorWindow:     "30d",
 		MetricDescription: "Some metric",
@@ -85,11 +87,11 @@ var _ = Describe("Converting ServiceLevelObjective Messages to Prometheus Rules"
 	// var alertPrometheusIR []*prometheus.SLOGroup
 	// var multiAlertPrometheusIR []*prometheus.SLOGroup
 
-	var simplePrometheusResponse []*generate.Response
-	var objectivePrometheusResponse []*generate.Response
-	var multiClusterPrometheusResponse []*generate.Response
-	// var alertPrometheusIR []*generate.Response
-	// var multiAlertPrometheusIR []*generate.Response
+	var simplePrometheusResponse []slo.SLORuleFmtWrapper
+	var objectivePrometheusResponse []slo.SLORuleFmtWrapper
+	var multiClusterPrometheusResponse []slo.SLORuleFmtWrapper
+	// var alertPrometheusIR []slo.SLORuleFmtWrapper
+	// var multiAlertPrometheusIR []slo.SLORuleFmtWrapper
 
 	When("A ServiceLevelObjective message is given", func() {
 		It("should validate proper input", func() {
@@ -102,19 +104,19 @@ var _ = Describe("Converting ServiceLevelObjective Messages to Prometheus Rules"
 			Expect(slo.ValidateInput(alertSLO)).To(Succeed())
 			Expect(slo.ValidateInput(multiAlerts)).To(Succeed())
 
-			for _, atype := range []string{slo.NotifHook, slo.NotifPager, slo.NotifMail, slo.NotifSlack} {
+			for _, atype := range []string{shared.NotifHook, shared.NotifPager, shared.NotifMail, shared.NotifSlack} {
 				sloNewAlert := proto.Clone(alertSLO).ProtoReflect().Interface().(*apis.ServiceLevelObjective)
 				alertSLO.Alerts[0].NotificationTarget = atype
 				Expect(slo.ValidateInput(sloNewAlert)).To(Succeed())
 			}
 
-			for _, ctype := range []string{slo.AlertingBurnRate, slo.AlertingBudget, slo.AlertingTarget} {
+			for _, ctype := range []string{shared.AlertingBurnRate, shared.AlertingBudget, shared.AlertingTarget} {
 				sloNewAlert := proto.Clone(alertSLO).ProtoReflect().Interface().(*apis.ServiceLevelObjective)
 				alertSLO.Alerts[0].ConditionType = ctype
 				Expect(slo.ValidateInput(sloNewAlert)).To(Succeed())
 			}
 
-			for _, ttype := range []string{slo.GTThresholdType, slo.LTThresholdType} {
+			for _, ttype := range []string{shared.GTThresholdType, shared.LTThresholdType} {
 				sloNewAlert := proto.Clone(alertSLO).ProtoReflect().Interface().(*apis.ServiceLevelObjective)
 				alertSLO.Alerts[0].ThresholdType = ttype
 				Expect(slo.ValidateInput(sloNewAlert)).To(Succeed())
@@ -124,27 +126,27 @@ var _ = Describe("Converting ServiceLevelObjective Messages to Prometheus Rules"
 		It("should reject improper input", func() {
 			invalidDesc := proto.Clone(slo1).ProtoReflect().Interface().(*apis.ServiceLevelObjective)
 			invalidDesc.Description = strings.Repeat("a", 1056)
-			Expect(slo.ValidateInput(invalidDesc)).To(MatchError(slo.ErrInvalidDescription))
+			Expect(slo.ValidateInput(invalidDesc)).To(MatchError(shared.ErrInvalidDescription))
 
 			invalidSource := proto.Clone(slo1).ProtoReflect().Interface().(*apis.ServiceLevelObjective)
 			invalidSource.Datasource = strings.Repeat("a", 256)
-			Expect(slo.ValidateInput(invalidSource)).To(MatchError(slo.ErrInvalidDatasource))
+			Expect(slo.ValidateInput(invalidSource)).To(MatchError(shared.ErrInvalidDatasource))
 
 			missingId := proto.Clone(slo1).ProtoReflect().Interface().(*apis.ServiceLevelObjective)
 			missingId.Id = ""
-			Expect(slo.ValidateInput(missingId)).To(MatchError(slo.ErrInvalidId))
+			Expect(slo.ValidateInput(missingId)).To(MatchError(shared.ErrInvalidId))
 
 			sloInvalidAlertTarget := proto.Clone(alertSLO).ProtoReflect().Interface().(*apis.ServiceLevelObjective)
 			sloInvalidAlertTarget.Alerts[0].NotificationTarget = "invalid-234987ukjas"
-			Expect(slo.ValidateInput(sloInvalidAlertTarget)).To(MatchError(slo.ErrInvalidAlertTarget))
+			Expect(slo.ValidateInput(sloInvalidAlertTarget)).To(MatchError(shared.ErrInvalidAlertTarget))
 
 			sloInvalidAlertCondition := proto.Clone(alertSLO).ProtoReflect().Interface().(*apis.ServiceLevelObjective)
 			sloInvalidAlertCondition.Alerts[0].ConditionType = "invalid-234987ukjas"
-			Expect(slo.ValidateInput(sloInvalidAlertCondition)).To(MatchError(slo.ErrInvalidAlertCondition))
+			Expect(slo.ValidateInput(sloInvalidAlertCondition)).To(MatchError(shared.ErrInvalidAlertCondition))
 
 			sloInvalidAlertThreshold := proto.Clone(alertSLO).ProtoReflect().Interface().(*apis.ServiceLevelObjective)
 			sloInvalidAlertThreshold.Alerts[0].ThresholdType = "invalid-234987ukjas"
-			Expect(slo.ValidateInput(sloInvalidAlertThreshold)).To(MatchError(slo.ErrInvalidAlertThreshold))
+			Expect(slo.ValidateInput(sloInvalidAlertThreshold)).To(MatchError(shared.ErrInvalidAlertThreshold))
 
 		})
 	})
@@ -175,10 +177,10 @@ var _ = Describe("Converting ServiceLevelObjective Messages to Prometheus Rules"
 			Expect(yaml.Marshal(&objectiveSpecs[0])).To(MatchYAML(expectedObjectives))
 
 			multiClusterMultiService.Services = []*apis.Service{
-				{JobId: "foo-service", ClusterId: "foo-cluster", MetricName: "uptime", MetricId: "up"},
-				{JobId: "foo-service2", ClusterId: "foo-cluster", MetricName: "uptime", MetricId: "up"},
-				{JobId: "foo-service", ClusterId: "bar-cluster", MetricName: "uptime", MetricId: "up"},
-				{JobId: "foo-service2", ClusterId: "bar-cluster", MetricName: "uptime", MetricId: "up"},
+				{JobId: "foo-service", ClusterId: "foo-cluster", MetricName: "uptime", MetricIdGood: "up", MetricIdTotal: "up"},
+				{JobId: "foo-service2", ClusterId: "foo-cluster", MetricName: "uptime", MetricIdGood: "up", MetricIdTotal: "up"},
+				{JobId: "foo-service", ClusterId: "bar-cluster", MetricName: "uptime", MetricIdGood: "up", MetricIdTotal: "up"},
+				{JobId: "foo-service2", ClusterId: "bar-cluster", MetricName: "uptime", MetricIdGood: "up", MetricIdTotal: "up"},
 			}
 
 			multiClusterSpecs, err = slo.ParseToOpenSLO(multiClusterMultiService, context.Background(), hclog.New(&hclog.LoggerOptions{}))
@@ -237,19 +239,87 @@ var _ = Describe("Converting ServiceLevelObjective Messages to Prometheus Rules"
 	})
 
 	When("We convert Sloth IR to prometheus rules", func() {
+		It("Should create valid MWMB rates", func() {
+			var err error
+			alertSLO := alert.SLO{
+				ID:        "foo",
+				Objective: 99.99,
+			}
+			ctx := context.Background()
+			alertGroup, err := slo.GenerateMWWBAlerts(ctx, alertSLO, time.Hour*24)
+			Expect(err).To(Succeed())
+			Expect(alertGroup).To(Not(BeNil()))
+		})
+
+		It("Should be able to generate SLI rulefmt.Rules based on alertGroups and SLO definition", func() {
+			sampleSLO := simplePrometheusIR[0].SLOs[0]
+			ctx := context.Background()
+			alertSLO := alert.SLO{
+				ID:        "foo",
+				Objective: 99.99,
+			}
+			alertGroup, err := slo.GenerateMWWBAlerts(ctx, alertSLO, time.Hour*24)
+			Expect(err).To(Succeed())
+			rules, err := slo.GenerateSLIRecordingRules(ctx, sampleSLO, *alertGroup)
+			Expect(err).To(Succeed())
+			// TODO : better testing for this when the final format is more stable
+			Expect(rules).To(HaveLen(6))
+
+		})
+
+		It("Should be able to generate metadata rulefmt.Rules based on alertGroups and SLO defintion", func() {
+			sampleSLO := simplePrometheusIR[0].SLOs[0]
+			ctx := context.Background()
+			alertSLO := alert.SLO{
+				ID:        "foo",
+				Objective: 99.99,
+			}
+			alertGroup, err := slo.GenerateMWWBAlerts(ctx, alertSLO, time.Hour*24)
+			Expect(err).To(Succeed())
+			rules, err := slo.GenerateMetadataRecordingRules(ctx, sampleSLO, alertGroup)
+			Expect(err).To(Succeed())
+			// TODO : better testing for this when the final format is more stable
+			Expect(rules).To(HaveLen(7))
+		})
+
+		It("Should be able to generate alert rulefmt.Rules base on alertGroups and SLO definition", func() {
+			sampleSLO := simplePrometheusIR[0].SLOs[0]
+			ctx := context.Background()
+			alertSLO := alert.SLO{
+				ID:        "foo",
+				Objective: 99.99,
+			}
+			alertGroup, err := slo.GenerateMWWBAlerts(ctx, alertSLO, time.Hour*24)
+			Expect(err).To(Succeed())
+			rules, err := slo.GenerateSLOAlertRules(ctx, sampleSLO, *alertGroup)
+			Expect(err).To(Succeed())
+			// TODO : better testing for this when the final format is more stable
+			Expect(rules).To(HaveLen(2))
+		})
+
 		It("Should create valid prometheus rules", func() {
 			var err error
-			simplePrometheusResponse, err = slo.GeneratePrometheusRule(simplePrometheusIR, context.Background())
-			Expect(err).To(MatchError("Prometheus generator failed to start"))
-			Expect(simplePrometheusResponse).To(BeNil())
 
-			objectivePrometheusResponse, err = slo.GeneratePrometheusRule(objectivePrometheusIR, context.Background())
-			Expect(err).To(MatchError("Prometheus generator failed to start"))
-			Expect(objectivePrometheusResponse).To(BeNil())
+			for _, sloGroup := range simplePrometheusIR {
+				simplePrometheusResponse, err = slo.GeneratePrometheusNoSlothGenerator(sloGroup, context.Background(), hclog.New(&hclog.LoggerOptions{}))
+				Expect(err).To(Succeed())
+				// TODO : better testing for this when the final format is more stable
+				Expect(len(simplePrometheusResponse)).Should(BeNumerically(">=", 1))
+			}
 
-			multiClusterPrometheusResponse, err = slo.GeneratePrometheusRule(multiClusterPrometheusIR, context.Background())
-			Expect(err).To(MatchError("Prometheus generator failed to start"))
-			Expect(multiClusterPrometheusResponse).To(BeNil())
+			for _, sloGroup := range objectivePrometheusIR {
+				objectivePrometheusResponse, err = slo.GeneratePrometheusNoSlothGenerator(sloGroup, context.Background(), hclog.New(&hclog.LoggerOptions{}))
+				Expect(err).To(Succeed())
+				// TODO : better testing for this when the final format is more stable
+				Expect(len(objectivePrometheusResponse)).Should(BeNumerically(">=", 1))
+			}
+
+			for _, sloGroup := range multiClusterPrometheusIR {
+				multiClusterPrometheusResponse, err = slo.GeneratePrometheusNoSlothGenerator(sloGroup, context.Background(), hclog.New(&hclog.LoggerOptions{}))
+				Expect(err).To(Succeed())
+				// TODO : better testing for this when the final format is more stable
+				Expect(len(multiClusterPrometheusResponse)).Should(BeNumerically(">=", 1))
+			}
 		})
 	})
 
