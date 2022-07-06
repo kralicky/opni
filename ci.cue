@@ -54,16 +54,10 @@ dagger.#Plan & {
 					"internal/cmd/testenv",
 				]
 			}
-			"bin": write: contents:       actions.build.bin
-			"web/dist": write: contents:  actions.web.dist
-			"cover.out": write: contents: actions.test.export.files["/src/cover.out"]
-			"aiops/apis/": write: {
-				_dist: core.#Subdir & {
-					input: actions.aiops.sdist.output.rootfs
-					path:  "/dist"
-				}
-				contents: _dist.output
-			}
+			"bin": write: contents:             actions.build.bin
+			"web/dist": write: contents:        actions.web.dist
+			"cover.out": write: contents:       actions.test.export.files["/src/cover.out"]
+			"aiops/apis/dist": write: contents: actions.aiops.sdist.output
 		}
 		commands: {
 			"aws-identity": {
@@ -419,13 +413,22 @@ dagger.#Plan & {
 			}
 		}
 		aiops: {
-			sdist: python.#Run & {
-				script: {
-					directory: actions.build.output.rootfs
-					filename:  "src/aiops/apis/setup.py"
+			sdist: {
+				_dist: python.#Run & {
+					script: {
+						directory: actions.build.output.rootfs
+						filename:  "src/aiops/apis/setup.py"
+					}
+					workdir: "/run/python/src/aiops/apis"
+					args: ["sdist", "-d", "/dist"]
+					output: docker.#Image
 				}
-				workdir: "/run/python/src/aiops/apis"
-				args: ["sdist", "-d", "/dist"]
+				_distSubdir: core.#Subdir & {
+					input: _dist.output.rootfs
+					path:  "/dist"
+				}
+				image:  _dist.output
+				output: dagger.#FS & _distSubdir.output
 			}
 			build: docker.#Build & {
 				steps: [
@@ -455,7 +458,7 @@ dagger.#Plan & {
 			_distImage: docker.#Build & {
 				steps: [
 					docker.#Run & {
-						input: aiops.sdist.output
+						input: aiops.sdist.image
 						command: {
 							name: "pip"
 							args: [ "install", "twine"]
