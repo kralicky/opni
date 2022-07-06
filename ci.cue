@@ -9,7 +9,6 @@ import (
 	"universe.dagger.io/docker"
 	"universe.dagger.io/docker/cli"
 	"universe.dagger.io/alpine"
-	"universe.dagger.io/git"
 	"universe.dagger.io/python"
 	"universe.dagger.io/x/david@rawkode.dev/pulumi"
 	"github.com/rancher/opni/internal/builders"
@@ -58,6 +57,13 @@ dagger.#Plan & {
 			"bin": write: contents:       actions.build.bin
 			"web/dist": write: contents:  actions.web.dist
 			"cover.out": write: contents: actions.test.export.files["/src/cover.out"]
+			"aiops/apis/": write: {
+				_dist: core.#Subdir & {
+					input: actions.aiops.sdist.output.rootfs
+					path:  "/dist"
+				}
+				contents: _dist.output
+			}
 		}
 		commands: {
 			"aws-identity": {
