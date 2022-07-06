@@ -350,7 +350,7 @@ dagger.#Plan & {
 			}
 			aiops: docker.#Push & {
 				dest:  "\(client.env.REPO)/opni-opensearch-update-service:\(client.env.TAG)"
-				image: aiops.build.output
+				image: actions.aiops.build.output
 				if client.env.DOCKER_USERNAME != _|_ && client.env.DOCKER_PASSWORD != _|_ {
 					auth: {
 						username: client.env.DOCKER_USERNAME
