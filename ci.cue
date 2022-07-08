@@ -204,7 +204,7 @@ dagger.#Plan & {
 				tag:   web.buildImage
 			}
 			aiops: cli.#Load & {
-				image: actions.aiops.build.output
+				image: actions.aiops.opensearchUpdateService.output
 				host:  client.network."unix:///var/run/docker.sock".connect
 				tag:   "\(client.env.REPO)/opni-aiops:\(client.env.TAG)"
 			}
@@ -344,7 +344,7 @@ dagger.#Plan & {
 			}
 			aiops: docker.#Push & {
 				dest:  "\(client.env.REPO)/opni-opensearch-update-service:\(client.env.TAG)"
-				image: actions.aiops.build.output
+				image: actions.aiops.opensearchUpdateService.output
 				if client.env.DOCKER_USERNAME != _|_ && client.env.DOCKER_PASSWORD != _|_ {
 					auth: {
 						username: client.env.DOCKER_USERNAME
@@ -430,35 +430,10 @@ dagger.#Plan & {
 				image:  _dist.output
 				output: dagger.#FS & _distSubdir.output
 			}
-			build: docker.#Build & {
-				steps: [
-					docker.#Pull & {
-						source: "rancher/opni-python-base:3.8"
-					},
-					docker.#Copy & {
-						contents: client.filesystem.".".read.contents
-						source:   "aiops/"
-						dest:     "."
-					},
-					docker.#Run & {
-						command: {
-							name: "pip"
-							args: ["install", "-r", "requirements.txt"]
-						}
-					},
-					docker.#Set & {
-						config: {
-							cmd: ["python", "opni-opensearch-update-service/opensearch-update-service/app/main.py"]
-						}
-					},
-				]
-			}
-		}
-		pypi: {
 			_distImage: docker.#Build & {
 				steps: [
 					docker.#Run & {
-						input: aiops.sdist.image
+						input:  sdist.image
 						command: {
 							name: "pip"
 							args: [ "install", "twine"]
@@ -481,6 +456,30 @@ dagger.#Plan & {
 					TWINE_USERNAME: client.env.TWINE_USERNAME
 					TWINE_PASSWORD: client.env.TWINE_PASSWORD
 				}
+			}
+			opensearchUpdateService: docker.#Build & {
+				steps: [
+					docker.#Pull & {
+						source: "rancher/opni-python-base:3.8"
+					},
+					docker.#Copy & {
+						contents: client.filesystem.".".read.contents
+						source:   "aiops/"
+						dest:     "."
+					},
+					docker.#Run & {
+						command: {
+							name: "pip"
+							args: ["install", "-r", "requirements.txt"]
+						}
+						env: HACK: "\(upload.success)"
+					},
+					docker.#Set & {
+						config: {
+							cmd: ["python", "opni-opensearch-update-service/opensearch-update-service/app/main.py"]
+						}
+					},
+				]
 			}
 		}
 	}
