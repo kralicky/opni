@@ -236,111 +236,6 @@ var (
 			Priority: 100,
 		},
 	}
-	opniLogTemplatePolicy = osapiext.ISMPolicySpec{
-		ISMPolicyIDSpec: &osapiext.ISMPolicyIDSpec{
-			PolicyID:   logTemplatePolicyName,
-			MarshallID: false,
-		},
-		Description:  "A hot-warm-cold-delete workflow for the templates index.",
-		DefaultState: "hot",
-		States: []osapiext.StateSpec{
-			{
-				Name: "hot",
-				Actions: []osapiext.ActionSpec{
-					{
-						ActionOperation: &osapiext.ActionOperation{
-							Rollover: &osapiext.RolloverOperation{
-								MinSize:     "1gb",
-								MinIndexAge: "1d",
-							},
-						},
-						Retry: &DefaultRetry,
-					},
-				},
-				Transitions: []osapiext.TransitionSpec{
-					{
-						StateName: "warm",
-					},
-				},
-			},
-			{
-				Name: "warm",
-				Actions: []osapiext.ActionSpec{
-					{
-						ActionOperation: &osapiext.ActionOperation{
-							ReplicaCount: &osapiext.ReplicaCountOperation{
-								NumberOfReplicas: 0,
-							},
-						},
-						Retry: &DefaultRetry,
-					},
-					{
-						ActionOperation: &osapiext.ActionOperation{
-							IndexPriority: &osapiext.IndexPriorityOperation{
-								Priority: 50,
-							},
-						},
-						Retry: &DefaultRetry,
-					},
-					{
-						ActionOperation: &osapiext.ActionOperation{
-							ForceMerge: &osapiext.ForceMergeOperation{
-								MaxNumSegments: 1,
-							},
-						},
-						Retry: &DefaultRetry,
-					},
-				},
-				Transitions: []osapiext.TransitionSpec{
-					{
-						StateName: "cold",
-						Conditions: &osapiext.ConditionSpec{
-							MinIndexAge: "5d",
-						},
-					},
-				},
-			},
-			{
-				Name: "cold",
-				Actions: []osapiext.ActionSpec{
-					{
-						ActionOperation: &osapiext.ActionOperation{
-							ReadOnly: &osapiext.ReadOnlyOperation{},
-						},
-						Retry: &DefaultRetry,
-					},
-				},
-				Transitions: []osapiext.TransitionSpec{
-					{
-						StateName: "delete",
-						Conditions: &osapiext.ConditionSpec{
-							MinIndexAge: "30d",
-						},
-					},
-				},
-			},
-			{
-				Name: "delete",
-				Actions: []osapiext.ActionSpec{
-					{
-						ActionOperation: &osapiext.ActionOperation{
-							Delete: &osapiext.DeleteOperation{},
-						},
-						Retry: &DefaultRetry,
-					},
-				},
-				Transitions: make([]osapiext.TransitionSpec, 0),
-			},
-		},
-		ISMTemplate: []osapiext.ISMTemplateSpec{
-			{
-				IndexPatterns: []string{
-					fmt.Sprintf("%s*", logTemplateIndexPrefix),
-				},
-				Priority: 100,
-			},
-		},
-	}
 	opniDrainModelStatusPolicy = osapiext.ISMPolicySpec{
 		ISMPolicyIDSpec: &osapiext.ISMPolicyIDSpec{
 			PolicyID:   drainStatusPolicyName,
@@ -868,6 +763,9 @@ var (
 				"template_cluster_id": {
 					Type: "integer",
 				},
+				"template_cluster_id": {
+					Type: "integer",
+				}
 			},
 		},
 	}
