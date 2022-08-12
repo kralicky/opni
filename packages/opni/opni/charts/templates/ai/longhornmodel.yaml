@@ -2,7 +2,7 @@
 apiVersion: opni.io/v1beta2
 kind: PretrainedModel
 metadata:
-  name: control-plane
+  name: longhorn
   namespace: {{ include "opni.namespace" . }}
   labels:
     {{- include "opni.labels" . | nindent 4 }}
