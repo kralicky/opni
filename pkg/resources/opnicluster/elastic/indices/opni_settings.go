@@ -763,9 +763,6 @@ var (
 				"template_cluster_id": {
 					Type: "integer",
 				},
-				"template_cluster_id": {
-					Type: "integer",
-				},
 			},
 		},
 	}

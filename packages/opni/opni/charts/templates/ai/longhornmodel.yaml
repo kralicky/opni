@@ -12,7 +12,7 @@ spec:
     http:
       url: "https://opni-public.s3.us-east-2.amazonaws.com/pretrain-models/longhorn-model-v0.6.0.zip"
   hyperparameters:
-    modelThreshold: "0.7"
+    modelThreshold: "0.8"
     minLogTokens: 1
     serviceType: "longhorn"
 {{- end }}
