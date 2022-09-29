@@ -15,8 +15,8 @@ import (
 	"github.com/rancher/opni/pkg/plugins/meta"
 	"github.com/rancher/opni/plugins/alerting/pkg/alerting"
 	"github.com/rancher/opni/plugins/example/pkg/example"
-	metrics_agent "github.com/rancher/opni/plugins/metrics/pkg/agent"
 	metrics_gateway "github.com/rancher/opni/plugins/metrics/pkg/gateway"
+	"github.com/rancher/opni/plugins/model_training/pkg/model_training"
 	"github.com/rancher/opni/plugins/slo/pkg/slo"
 )
 
@@ -125,6 +125,14 @@ func LoadPlugins(loader *plugins.PluginLoader, mode meta.PluginMode) int {
 				BinaryPath: "plugin_alerting",
 				GoVersion:  runtime.Version(),
 				Module:     "github.com/rancher/opni/plugins/alerting",
+			},
+		},
+		{
+			Scheme: model_training.Scheme(context.Background()),
+			Metadata: meta.PluginMeta{
+				BinaryPath: "plugin_model_training",
+				GoVersion:  runtime.Version(),
+				Module:     "github.com/rancher/opni/plugins/model_training",
 			},
 		},
 	}
