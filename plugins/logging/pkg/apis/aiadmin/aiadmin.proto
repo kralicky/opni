@@ -1,0 +1,31 @@
+syntax = "proto3";
+option go_package = "github.com/rancher/opni/plugins/logging/pkg/apis/aiadmin";
+
+import "google/protobuf/empty.proto";
+import "google/api/http.proto";
+import "google/api/annotations.proto";
+
+package aiadmin;
+
+service AIAdmin {
+    rpc GetPretrainedModel(PretrainedModelRef) returns(PretrainedModel) {
+        option (google.api.http) = {
+            get: "/ai/pretrained/{type}"
+        };
+    }
+    rpc PutPretrainedModel(PretrainedModel) returns(google.protobuf.Empty) {
+        option (google.api.http) = {
+            put: "/ai/pretrained"
+        };
+    }
+}
+
+message PretrainedModelRef {
+    string type = 1;
+}
+
+message PretrainedModel {
+    PretrainedModelRef ref = 1;
+    optional string httpSource = 2;
+    optional string imageSource = 3;
+}
