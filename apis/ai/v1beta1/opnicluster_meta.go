@@ -11,7 +11,6 @@ const (
 	InferenceService ServiceKind = iota
 	DrainService
 	PreprocessingService
-	PayloadReceiverService
 	GPUControllerService
 	MetricsService
 	OpensearchUpdateService
@@ -34,8 +33,6 @@ func (s ServiceKind) String() string {
 		return "drain"
 	case PreprocessingService:
 		return "preprocessing"
-	case PayloadReceiverService:
-		return "payload-receiver"
 	case GPUControllerService:
 		return "gpu-controller"
 	case MetricsService:
@@ -68,8 +65,6 @@ func (s ServiceKind) GetImageSpec(opniCluster *OpniCluster) *opnimeta.ImageSpec 
 		return &opniCluster.Spec.Services.Drain.ImageSpec
 	case PreprocessingService:
 		return &opniCluster.Spec.Services.Preprocessing.ImageSpec
-	case PayloadReceiverService:
-		return &opniCluster.Spec.Services.PayloadReceiver.ImageSpec
 	case GPUControllerService:
 		return &opniCluster.Spec.Services.GPUController.ImageSpec
 	case MetricsService:
@@ -89,8 +84,6 @@ func (s ServiceKind) GetNodeSelector(opniCluster *OpniCluster) map[string]string
 		return opniCluster.Spec.Services.Drain.NodeSelector
 	case PreprocessingService:
 		return opniCluster.Spec.Services.Preprocessing.NodeSelector
-	case PayloadReceiverService:
-		return opniCluster.Spec.Services.PayloadReceiver.NodeSelector
 	case GPUControllerService:
 		return opniCluster.Spec.Services.GPUController.NodeSelector
 	case MetricsService:
@@ -110,8 +103,6 @@ func (s ServiceKind) GetTolerations(opniCluster *OpniCluster) []corev1.Toleratio
 		return opniCluster.Spec.Services.Drain.Tolerations
 	case PreprocessingService:
 		return opniCluster.Spec.Services.Preprocessing.Tolerations
-	case PayloadReceiverService:
-		return opniCluster.Spec.Services.PayloadReceiver.Tolerations
 	case GPUControllerService:
 		return opniCluster.Spec.Services.GPUController.Tolerations
 	case MetricsService:

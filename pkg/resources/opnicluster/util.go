@@ -75,7 +75,6 @@ func ConvertSpec(input aiv1beta1.OpniClusterSpec) v1beta2.OpniClusterSpec {
 
 	services := v1beta2.ServicesSpec{}
 	services.Inference = v1beta2.InferenceServiceSpec(input.Services.Inference)
-	services.PayloadReceiver = v1beta2.PayloadReceiverServiceSpec(input.Services.PayloadReceiver)
 	services.GPUController = v1beta2.GPUControllerServiceSpec(input.Services.GPUController)
 	services.Metrics = v1beta2.MetricsServiceSpec(input.Services.Metrics)
 	services.Preprocessing = v1beta2.PreprocessingServiceSpec(input.Services.Preprocessing)

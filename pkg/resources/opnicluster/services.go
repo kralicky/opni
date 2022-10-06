@@ -38,8 +38,6 @@ func (r *Reconciler) opniServices() ([]resources.Resource, error) {
 		r.nulogHyperparameters,
 		//r.inferenceDeployment,
 		r.drainDeployment,
-		r.payloadReceiverDeployment,
-		r.payloadReceiverService,
 		r.preprocessingDeployment,
 		//r.gpuCtrlDeployment,
 		r.metricsDeployment,
@@ -677,32 +675,6 @@ func (r *Reconciler) drainDeployment() (runtime.Object, reconciler.DesiredState,
 	}
 	deployment.Spec.Replicas = r.spec.Services.Drain.Replicas
 	return deployment, deploymentState(r.spec.Services.Drain.Enabled), nil
-}
-
-func (r *Reconciler) payloadReceiverDeployment() (runtime.Object, reconciler.DesiredState, error) {
-	deployment := r.genericDeployment(v1beta2.PayloadReceiverService)
-	return deployment, deploymentState(r.spec.Services.PayloadReceiver.Enabled), nil
-}
-
-func (r *Reconciler) payloadReceiverService() (runtime.Object, reconciler.DesiredState, error) {
-	labels := r.serviceLabels(v1beta2.PayloadReceiverService)
-	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      labels[resources.AppNameLabel],
-			Namespace: r.instanceNamespace,
-			Labels:    labels,
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: labels,
-			Ports: []corev1.ServicePort{
-				{
-					Port: 80,
-				},
-			},
-		},
-	}
-	r.setOwner(service)
-	return service, deploymentState(r.spec.Services.PayloadReceiver.Enabled), nil
 }
 
 func (r *Reconciler) preprocessingDeployment() (runtime.Object, reconciler.DesiredState, error) {

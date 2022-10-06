@@ -97,7 +97,6 @@ var _ = Describe("AI OpniCluster Controller", Ordered, Label("controller"), func
 		for _, kind := range []aiv1beta1.ServiceKind{
 			aiv1beta1.DrainService,
 			//v1beta2.InferenceService,
-			aiv1beta1.PayloadReceiverService,
 			aiv1beta1.PreprocessingService,
 			//v1beta2.GPUControllerService,
 			aiv1beta1.MetricsService,

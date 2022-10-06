@@ -407,10 +407,6 @@ func buildAICluster(opts opniClusterOpts) *aiv1beta1.OpniCluster {
 					Enabled:   lo.ToPtr(!opts.DisableOpniServices),
 					ImageSpec: imageSpec,
 				},
-				PayloadReceiver: aiv1beta1.PayloadReceiverServiceSpec{
-					Enabled:   lo.ToPtr(!opts.DisableOpniServices),
-					ImageSpec: imageSpec,
-				},
 				GPUController: aiv1beta1.GPUControllerServiceSpec{
 					Enabled:   lo.ToPtr(!opts.DisableOpniServices),
 					ImageSpec: imageSpec,
