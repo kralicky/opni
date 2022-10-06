@@ -25,6 +25,7 @@ const _ = grpc.SupportPackageIsVersion7
 type AIAdminClient interface {
 	GetPretrainedModel(ctx context.Context, in *PretrainedModelRef, opts ...grpc.CallOption) (*PretrainedModel, error)
 	PutPretrainedModel(ctx context.Context, in *PretrainedModel, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetAISettings(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*AISettings, error)
 }
 
 type aIAdminClient struct {
@@ -53,12 +54,22 @@ func (c *aIAdminClient) PutPretrainedModel(ctx context.Context, in *PretrainedMo
 	return out, nil
 }
 
+func (c *aIAdminClient) GetAISettings(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*AISettings, error) {
+	out := new(AISettings)
+	err := c.cc.Invoke(ctx, "/aiadmin.AIAdmin/GetAISettings", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AIAdminServer is the server API for AIAdmin service.
 // All implementations must embed UnimplementedAIAdminServer
 // for forward compatibility
 type AIAdminServer interface {
 	GetPretrainedModel(context.Context, *PretrainedModelRef) (*PretrainedModel, error)
 	PutPretrainedModel(context.Context, *PretrainedModel) (*emptypb.Empty, error)
+	GetAISettings(context.Context, *emptypb.Empty) (*AISettings, error)
 	mustEmbedUnimplementedAIAdminServer()
 }
 
@@ -71,6 +82,9 @@ func (UnimplementedAIAdminServer) GetPretrainedModel(context.Context, *Pretraine
 }
 func (UnimplementedAIAdminServer) PutPretrainedModel(context.Context, *PretrainedModel) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutPretrainedModel not implemented")
+}
+func (UnimplementedAIAdminServer) GetAISettings(context.Context, *emptypb.Empty) (*AISettings, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAISettings not implemented")
 }
 func (UnimplementedAIAdminServer) mustEmbedUnimplementedAIAdminServer() {}
 
@@ -121,6 +135,24 @@ func _AIAdmin_PutPretrainedModel_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AIAdmin_GetAISettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AIAdminServer).GetAISettings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/aiadmin.AIAdmin/GetAISettings",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AIAdminServer).GetAISettings(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AIAdmin_ServiceDesc is the grpc.ServiceDesc for AIAdmin service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -135,6 +167,10 @@ var AIAdmin_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PutPretrainedModel",
 			Handler:    _AIAdmin_PutPretrainedModel_Handler,
+		},
+		{
+			MethodName: "GetAISettings",
+			Handler:    _AIAdmin_GetAISettings_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

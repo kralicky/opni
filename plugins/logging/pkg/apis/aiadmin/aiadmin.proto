@@ -18,6 +18,11 @@ service AIAdmin {
             put: "/ai/pretrained"
         };
     }
+    rpc GetAISettings(google.protobuf.Empty) returns(AISettings) {
+        option (google.api.http) = {
+            get: "/ai/logging/settings"
+        };
+    }
 }
 
 message PretrainedModelRef {
@@ -28,4 +33,8 @@ message PretrainedModel {
     PretrainedModelRef ref = 1;
     optional string httpSource = 2;
     optional string imageSource = 3;
+}
+
+message AISettings {
+    bool enabled = 1;
 }
