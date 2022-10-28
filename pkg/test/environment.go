@@ -156,6 +156,7 @@ type EnvironmentOptions struct {
 	defaultAgentVersion       string
 	enableDisconnectServer    bool
 	enableNodeExporter        bool
+	storageBackend            v1beta1.StorageType
 }
 
 type EnvironmentOption func(*EnvironmentOptions)
@@ -238,11 +239,24 @@ func WithEnableNodeExporter(enable bool) EnvironmentOption {
 	}
 }
 
+func WithStorageBackend(backend v1beta1.StorageType) EnvironmentOption {
+	return func(o *EnvironmentOptions) {
+		o.storageBackend = backend
+	}
+}
+
 func defaultAgentVersion() string {
 	if v, ok := os.LookupEnv("TEST_ENV_DEFAULT_AGENT_VERSION"); ok {
 		return v
 	}
 	return "v2"
+}
+
+func defaultStorageBackend() v1beta1.StorageType {
+	if v, ok := os.LookupEnv("TEST_ENV_DEFAULT_STORAGE_BACKEND"); ok {
+		return v1beta1.StorageType(v)
+	}
+	return "etcd"
 }
 
 func (e *Environment) Start(opts ...EnvironmentOption) error {
@@ -256,6 +270,7 @@ func (e *Environment) Start(opts ...EnvironmentOption) error {
 		enableRealtimeServer:   true,
 		agentIdSeed:            time.Now().UnixNano(),
 		defaultAgentVersion:    defaultAgentVersion(),
+		storageBackend:         defaultStorageBackend(),
 	}
 	options.apply(opts...)
 
@@ -368,6 +383,12 @@ func (e *Environment) Start(opts ...EnvironmentOption) error {
 			panic(err)
 		}
 	}
+	if portNum, ok := os.LookupEnv("JETSTREAM_PORT"); ok {
+		e.ports.Jetstream, err = strconv.Atoi(portNum)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	e.tempDir, err = os.MkdirTemp("", "opni-test-*")
 	if err != nil {
@@ -379,10 +400,10 @@ func (e *Environment) Start(opts ...EnvironmentOption) error {
 		}
 	}
 	if options.enableJetstream {
-		if err := os.Mkdir(path.Join(e.tempDir, "jetstream"), 0700); err != nil {
+		if err := os.MkdirAll(path.Join(e.tempDir, "jetstream/data"), 0700); err != nil {
 			return err
 		}
-		if err := os.Mkdir(path.Join(e.tempDir, "jetstream-seed"), 0700); err != nil {
+		if err := os.MkdirAll(path.Join(e.tempDir, "jetstream/seed"), 0700); err != nil {
 			return err
 		}
 	}
@@ -616,21 +637,21 @@ func (e *Environment) startJetstream() {
 	t.Execute(&b, map[string]string{
 		"PublicKey": publicKey,
 	})
-	conf := filepath.Join(e.tempDir, "jetstream.conf")
+	conf := filepath.Join(e.tempDir, "jetstream", "jetstream.conf")
 	err = os.WriteFile(conf, b.Bytes(), 0644)
 	if err != nil {
 		panic(err)
 	}
-	lg.Debugf("jetstream port is %d", e.ports.Jetstream)
 	defaultArgs := []string{
 		"--jetstream",
 		fmt.Sprintf("--config=%s", conf),
 		fmt.Sprintf("--auth=%s", seed),
-		fmt.Sprintf("--store_dir=%s", path.Join(e.tempDir, "jetstream")),
+		fmt.Sprintf("--store_dir=%s", path.Join(e.tempDir, "jetstream", "data")),
 		fmt.Sprintf("--port=%d", e.ports.Jetstream),
 	}
 	jetstreamBin := path.Join(e.TestBin, "nats-server")
 	cmd := exec.CommandContext(e.ctx, jetstreamBin, defaultArgs...)
+	plugins.ConfigureSysProcAttr(cmd)
 	session, err := testutil.StartCmd(cmd)
 	if err != nil {
 		if !errors.Is(e.ctx.Err(), context.Canceled) {
@@ -640,7 +661,7 @@ func (e *Environment) startJetstream() {
 		}
 	}
 	os.Setenv("NATS_SERVER_URL", fmt.Sprintf("http://localhost:%d", e.ports.Jetstream))
-	authConfigFile := path.Join(e.tempDir, "jetstream-seed", "nats-auth.conf")
+	authConfigFile := path.Join(e.tempDir, "jetstream", "seed", "nats-auth.conf")
 	err = os.WriteFile(authConfigFile, []byte(seed), 0644)
 	if err != nil {
 		panic("failed to write jetstream auth config")
@@ -1234,12 +1255,23 @@ func (e *Environment) newGatewayConfig() *v1beta1.GatewayConfig {
 					ClientKey:  path.Join(e.tempDir, "cortex/client.key"),
 				},
 			},
-			Storage: v1beta1.StorageSpec{
-				Type: v1beta1.StorageTypeEtcd,
-				Etcd: &v1beta1.EtcdStorageSpec{
-					Endpoints: []string{fmt.Sprintf("http://localhost:%d", e.ports.Etcd)},
-				},
-			},
+			Storage: lo.Switch[v1beta1.StorageType, v1beta1.StorageSpec](e.storageBackend).
+				Case(v1beta1.StorageTypeEtcd, v1beta1.StorageSpec{
+					Type: v1beta1.StorageTypeEtcd,
+					Etcd: &v1beta1.EtcdStorageSpec{
+						Endpoints: []string{fmt.Sprintf("http://localhost:%d", e.ports.Etcd)},
+					},
+				}).
+				Case(v1beta1.StorageTypeJetStream, v1beta1.StorageSpec{
+					Type: v1beta1.StorageTypeJetStream,
+					JetStream: &v1beta1.JetStreamStorageSpec{
+						Endpoint:     fmt.Sprintf("nats://localhost:%d", e.ports.Jetstream),
+						NkeySeedPath: path.Join(e.tempDir, "jetstream", "seed", "nats-auth.conf"),
+					},
+				}).
+				DefaultF(func() v1beta1.StorageSpec {
+					panic("unknown storage backend")
+				}),
 			Alerting: v1beta1.AlertingSpec{
 				//Endpoints:                 []string{"opni-alerting:9093"},
 				ConfigMap: "alertmanager-config",
@@ -1653,6 +1685,16 @@ func (e *Environment) EtcdConfig() *v1beta1.EtcdStorageSpec {
 	}
 	return &v1beta1.EtcdStorageSpec{
 		Endpoints: []string{fmt.Sprintf("http://localhost:%d", e.ports.Etcd)},
+	}
+}
+
+func (e *Environment) JetStreamConfig() *v1beta1.JetStreamStorageSpec {
+	if !e.enableJetstream {
+		e.Logger.Panic("JetStream disabled")
+	}
+	return &v1beta1.JetStreamStorageSpec{
+		Endpoint:     fmt.Sprintf("http://localhost:%d", e.ports.Jetstream),
+		NkeySeedPath: path.Join(e.tempDir, "jetstream", "seed", "nats-auth.conf"),
 	}
 }
 
